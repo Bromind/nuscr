@@ -3,7 +3,7 @@ open Names
 
 let sprintf = Printf.sprintf
 
-type 'a cont_list = (LabelName.t * PayloadTypeName.t list * 'a) list
+type 'a cont_list = (LabelName.t * (Names.VariableName.t Base.option * PayloadTypeName.t) list * 'a) list
 
 type global =
   | BranchG of
@@ -24,12 +24,12 @@ type local =
 let rec from_gtype = function
   | Gtype.MessageG (m, r_from, r_to, cont) ->
       BranchG
-        { g_br_from= r_from
-        ; g_br_to= r_to
-        ; g_br_cont=
-            [ ( m.Gtype.label
-              , List.map ~f:Gtype.typename_of_payload m.Gtype.payload
-              , from_gtype cont ) ] }
+        { g_br_from = r_from
+        ; g_br_to = r_to
+        ; g_br_cont =
+            [ ( m.Gtype.label,
+                List.map ~f:Gtype.names_of_payload_value m.Gtype.payload,
+                from_gtype cont ) ] }
   | Gtype.MuG (tv, _, cont) -> MuG (tv, from_gtype cont)
   | Gtype.TVarG (tv, _, _) -> TVarG tv
   | Gtype.EndG -> EndG
@@ -54,9 +54,9 @@ let rec from_gtype = function
           let cont =
             match gtype with
             | Gtype.MessageG (m, _, _, cont) ->
-                ( m.Gtype.label
-                , List.map ~f:Gtype.typename_of_payload m.Gtype.payload
-                , from_gtype cont )
+                ( m.Gtype.label,
+                List.map ~f:Gtype.names_of_payload_value m.Gtype.payload,
+                from_gtype cont )
             | _ ->
                 Err.violation ~here:[%here]
                   "Normalise should give a message as prefix"
@@ -77,13 +77,13 @@ let rec from_ltype = function
       RecvL
         ( r_from
         , [ ( m.Gtype.label
-            , List.map ~f:Gtype.typename_of_payload m.Gtype.payload
+            , List.map ~f:Gtype.names_of_payload_value m.Gtype.payload
             , from_ltype cont ) ] )
   | Ltype.SendL (m, r_from, cont) ->
       SendL
         ( r_from
         , [ ( m.Gtype.label
-            , List.map ~f:Gtype.typename_of_payload m.Gtype.payload
+            , List.map ~f:Gtype.names_of_payload_value m.Gtype.payload
             , from_ltype cont ) ] )
   | Ltype.ChoiceL (_, conts) -> (
     match conts with
@@ -108,11 +108,11 @@ let rec from_ltype = function
             match ltype with
             | Ltype.SendL (m, _, cont) ->
                 ( m.Gtype.label
-                , List.map ~f:Gtype.typename_of_payload m.Gtype.payload
+                , List.map ~f:Gtype.names_of_payload_value m.Gtype.payload
                 , from_ltype cont )
             | Ltype.RecvL (m, _, cont) ->
                 ( m.Gtype.label
-                , List.map ~f:Gtype.typename_of_payload m.Gtype.payload
+                , List.map ~f:Gtype.names_of_payload_value m.Gtype.payload
                 , from_ltype cont )
             | _ ->
                 Err.violation ~here:[%here]
@@ -138,9 +138,10 @@ let show_cont f (label, payloads, cont) =
     match payloads with
     | [] -> ""
     | payloads ->
+        let payloads_wo_names = List.map ~f:(function (_, t) -> t) payloads in
         sprintf "(%s)"
           (String.concat ~sep:", "
-             (List.map ~f:PayloadTypeName.user payloads) )
+             (List.map ~f:PayloadTypeName.user payloads_wo_names) )
   in
   sprintf "%s%s . %s" (LabelName.user label) payloads (f cont)
 
@@ -176,7 +177,12 @@ let tex_format_role role = sprintf "\\RoleFmt{%s}" (RoleName.user role)
 let tex_format_label label = sprintf "\\LabelFmt{%s}" (LabelName.user label)
 
 let tex_format_payload payload =
-  sprintf "\\PayloadFmt{%s}" (PayloadTypeName.user payload)
+        let (var, typ) = payload in
+        match var with
+        | Some var ->
+            sprintf "\\PayloadFmt{%s: %s}" (VariableName.user var) (PayloadTypeName.user typ)
+        | None ->
+            sprintf "\\PayloadFmt{%s}" (PayloadTypeName.user typ)
 
 let tex_format_payloads payloads =
   String.concat ~sep:", " (List.map ~f:tex_format_payload payloads)

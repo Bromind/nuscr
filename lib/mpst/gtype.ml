@@ -70,10 +70,18 @@ module Payload = struct
                , "Refinement Types require RefinementTypes pragma to be set."
                ) )
 
+  let variablename_of_payload = function
+    | PValue(na, _) -> na
+    | PDelegate _ ->
+        Err.unimpl ~here:[%here] "delegation for code generation"
+
   let typename_of_payload = function
     | PValue (_, ty) -> Expr.payload_typename_of_payload_type ty
     | PDelegate _ ->
         Err.unimpl ~here:[%here] "delegation for code generation"
+
+  let names_of_payload_value p =
+    (variablename_of_payload p, typename_of_payload p)
 end
 
 include Payload

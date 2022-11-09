@@ -20,7 +20,14 @@ type message = {label: LabelName.t; payload: payload list}
 
 val equal_pvalue_payload : payload -> payload -> bool
 
+(** Returns the (optional) variable name of the payload. Fails if the payload is a [PDelegate] variant. *)
+val variablename_of_payload : payload -> VariableName.t option
+
+(** Returns the type of the payload. Fails if the payload is a [PDelegate] variant. *)
 val typename_of_payload : payload -> PayloadTypeName.t
+
+(** Returns the name (if any) and the type of the payload. Fails if the payload is a [PDelegate] variant. *)
+val names_of_payload_value : payload -> (VariableName.t option * PayloadTypeName.t)
 
 (** Recursion variable *)
 type rec_var =
