@@ -16,7 +16,13 @@ let of_gtype gtype =
           :: rest ->
             let from_role = RoleName.user from_role in
             let to_role = RoleName.user to_role in
-            let add_cont (idx, pb_gtype) (label, _, cont) =
+            let add_cont (idx, pb_gtype) (label, _, refs, cont) =
+              let _ = match refs with
+              | _ :: _ -> 
+                Err.violation ~here:[%here]
+                  "Can not use refinements in protobuf"
+              | [] -> ()
+              in
               let label = LabelName.user label in
               let action_send =
                 GlobalAction.make ~idx
@@ -86,7 +92,13 @@ let of_ltype ltype =
         | (SendL (partner_role, conts) as ltype) :: rest
          |(RecvL (partner_role, conts) as ltype) :: rest ->
             let partner_role = RoleName.user partner_role in
-            let add_cont (idx, pb_ltype) (label, _, cont) =
+            let add_cont (idx, pb_ltype) (label, _, refs, cont) =
+              let _ = match refs with
+              | _ :: _ -> 
+                Err.violation ~here:[%here]
+                  "Can not use refinements in protobuf"
+              | [] -> ()
+              in
               let label = LabelName.user label in
               let idx = idx + 1 in
               let action_type =

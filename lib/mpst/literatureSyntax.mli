@@ -4,7 +4,7 @@
 open! Base
 open Names
 
-type 'a cont_list = (LabelName.t * (Names.VariableName.t Base.option * PayloadTypeName.t) list * 'a) list
+type 'a cont_list = (LabelName.t * (Names.VariableName.t Base.option * PayloadTypeName.t) list * Expr.t list* 'a) list
 
 (** Global Types with basic features, in a form that is similar to those seen
     in standard literature. (No choice constructor, all choices are directed) *)

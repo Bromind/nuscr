@@ -1,9 +1,10 @@
 open! Base
 open Names
+open Gtype
 
 let sprintf = Printf.sprintf
 
-type 'a cont_list = (LabelName.t * (Names.VariableName.t Base.option * PayloadTypeName.t) list * 'a) list
+type 'a cont_list = (LabelName.t * (Names.VariableName.t Base.option * PayloadTypeName.t) list * Expr.t list* 'a) list
 
 type global =
   | BranchG of
@@ -21,6 +22,17 @@ type local =
   | TVarL of TypeVariableName.t
   | EndL
 
+
+let refinements_of_payload (p: Gtype.payload list) = 
+  let f p = 
+    match p with
+    | PValue (_, Expr.PTRefined (_, _, r)) -> Some r
+    | PValue _ -> None
+    | PDelegate _ -> 
+        Err.unimpl ~here:[%here] "Extraction of refinements from delegate type."
+  in
+  List.filter_map ~f:f p
+
 let rec from_gtype = function
   | Gtype.MessageG (m, r_from, r_to, cont) ->
       BranchG
@@ -29,6 +41,7 @@ let rec from_gtype = function
         ; g_br_cont =
             [ ( m.Gtype.label,
                 List.map ~f:Gtype.names_of_payload_value m.Gtype.payload,
+                refinements_of_payload m.payload,
                 from_gtype cont ) ] }
   | Gtype.MuG (tv, _, cont) -> MuG (tv, from_gtype cont)
   | Gtype.TVarG (tv, _, _) -> TVarG tv
@@ -56,6 +69,7 @@ let rec from_gtype = function
             | Gtype.MessageG (m, _, _, cont) ->
                 ( m.Gtype.label,
                 List.map ~f:Gtype.names_of_payload_value m.Gtype.payload,
+                refinements_of_payload m.payload,
                 from_gtype cont )
             | _ ->
                 Err.violation ~here:[%here]
@@ -67,9 +81,9 @@ let rec from_gtype = function
         BranchG
           { (* From role should always be the choicer in the standard
                syntax *)
-            g_br_from= choicer
-          ; g_br_to= Option.value_exn receiver_role
-          ; g_br_cont= List.rev conts } )
+            g_br_from = choicer
+          ; g_br_to = Option.value_exn receiver_role
+          ; g_br_cont = List.rev conts } )
   | Gtype.CallG _ -> Err.unimpl ~here:[%here] "from_gtype: CallG"
 
 let rec from_ltype = function
@@ -78,12 +92,14 @@ let rec from_ltype = function
         ( r_from
         , [ ( m.Gtype.label
             , List.map ~f:Gtype.names_of_payload_value m.Gtype.payload
+            , refinements_of_payload m.payload
             , from_ltype cont ) ] )
   | Ltype.SendL (m, r_from, cont) ->
       SendL
         ( r_from
         , [ ( m.Gtype.label
             , List.map ~f:Gtype.names_of_payload_value m.Gtype.payload
+            , refinements_of_payload m.payload
             , from_ltype cont ) ] )
   | Ltype.ChoiceL (_, conts) -> (
     match conts with
@@ -109,10 +125,12 @@ let rec from_ltype = function
             | Ltype.SendL (m, _, cont) ->
                 ( m.Gtype.label
                 , List.map ~f:Gtype.names_of_payload_value m.Gtype.payload
+                , refinements_of_payload m.payload
                 , from_ltype cont )
             | Ltype.RecvL (m, _, cont) ->
                 ( m.Gtype.label
                 , List.map ~f:Gtype.names_of_payload_value m.Gtype.payload
+                , refinements_of_payload m.payload
                 , from_ltype cont )
             | _ ->
                 Err.violation ~here:[%here]
@@ -151,10 +169,19 @@ let show_cont_list f = function
       sprintf "{\n%s\n}"
         (String.concat ~sep:",\n" (List.map ~f:(show_cont f) conts))
 
+let drop_ref br = 
+  let (l, payload_list, ref, cont) = br in
+  match ref with 
+  | _ :: _ -> 
+    Err.violation ~here:[%here]
+      "Can not print refinements in mpstk"
+  | [] -> 
+    (l, payload_list, cont)
+
 let rec show_gtype_mpstk = function
   | BranchG {g_br_from; g_br_to; g_br_cont} ->
       sprintf "%s→%s:%s" (RoleName.user g_br_from) (RoleName.user g_br_to)
-        (show_cont_list show_gtype_mpstk g_br_cont)
+        (show_cont_list show_gtype_mpstk (List.map ~f:drop_ref g_br_cont))
   | MuG (tv, cont) ->
       sprintf "μ(%s)(%s)" (TypeVariableName.user tv) (show_gtype_mpstk cont)
   | TVarG tv -> TypeVariableName.user tv
@@ -163,10 +190,10 @@ let rec show_gtype_mpstk = function
 let rec show_ltype_mpstk = function
   | SendL (role, conts) ->
       sprintf "%s⊕%s" (RoleName.user role)
-        (show_cont_list show_ltype_mpstk conts)
+        (show_cont_list show_ltype_mpstk (List.map ~f:drop_ref conts))
   | RecvL (role, conts) ->
       sprintf "%s&%s" (RoleName.user role)
-        (show_cont_list show_ltype_mpstk conts)
+        (show_cont_list show_ltype_mpstk (List.map ~f:drop_ref conts))
   | MuL (tv, cont) ->
       sprintf "μ(%s)(%s)" (TypeVariableName.user tv) (show_ltype_mpstk cont)
   | TVarL tv -> TypeVariableName.user tv
@@ -187,15 +214,24 @@ let tex_format_payload payload =
 let tex_format_payloads payloads =
   String.concat ~sep:", " (List.map ~f:tex_format_payload payloads)
 
+let tex_format_refinement ref = 
+        sprintf "\\refinement{%s}" (Expr.show ref)
+
+let tex_format_refinements refs = 
+  String.concat ~sep:", " (List.map ~f:tex_format_refinement refs)
+
+
 let show_cont_list f ~prefix_single ~prefix_raw = function
-  | [(label, payloads, next)] ->
-      sprintf "%s{%s}{%s}{%%\n%s\n}" prefix_single (tex_format_label label)
+  | [(label, payloads, refinements, next)] ->
+      sprintf "%s{%s}{%s\\vdash %s}{%%\n%s\n}" prefix_single (tex_format_label label)
         (tex_format_payloads payloads)
+        (tex_format_refinements refinements)
         (f next)
   | conts ->
-      let tex_format_cont (label, payloads, next) =
-        sprintf "\\commChoice{%s}{%s}{%s}" (tex_format_label label)
+      let tex_format_cont (label, payloads, refinements, next) =
+        sprintf "\\commChoice{%s}{%s\\vdash %s}{%s}" (tex_format_label label)
           (tex_format_payloads payloads)
+          (tex_format_refinements refinements)
           (f next)
       in
       sprintf "%s{%%\n\\begin{array}{@{}l@{}}\n%s\n\\end{array}\n}"
