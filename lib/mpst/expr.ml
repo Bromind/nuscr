@@ -142,9 +142,13 @@ type typing_env = payload_type Map.M(VariableName).t
 let new_typing_env = Map.empty (module VariableName)
 
 let env_append env var ty =
-  match Map.add env ~key:var ~data:ty with
-  | `Ok env -> env
-  | `Duplicate -> Err.unimpl ~here:[%here] "alpha-converting variables"
+  match Map.find env var with
+  | Some t -> if equal_payload_type_basic t ty
+        then env
+        else Err.unimpl ~here:[%here] "alpha-converting variables"
+  | None -> match Map.add env ~key:var ~data:ty with
+          | `Ok env -> env
+          | `Duplicate -> Err.unimpl ~here:[%here] "alpha-converting variables"
 
 (* let env_print env =
  *   Map.iteri
