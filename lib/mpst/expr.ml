@@ -106,14 +106,10 @@ module Formatting = struct
   let rec pp_payload_type ppf = function
     | PTAbstract n -> pp_print_string ppf (PayloadTypeName.user n)
     | PTRefined (v, t, e) ->
-        pp_print_string ppf "(" ;
-        pp_print_string ppf (VariableName.user v) ;
-        pp_print_string ppf ":" ;
         pp_payload_type ppf t ;
         pp_print_string ppf "{" ;
         pp ppf e ;
         pp_print_string ppf "}";
-        pp_print_string ppf ")"
     | PTInt -> pp_print_string ppf "int"
     | PTBool -> pp_print_string ppf "bool"
     | PTString -> pp_print_string ppf "string"
