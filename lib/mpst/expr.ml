@@ -64,12 +64,9 @@ let rec equal_payload_type_basic t1 t2 =
 module Formatting = struct
   open! Caml.Format
 
-  let binop_level = function
-    | And | Or -> 0
-    | Eq | Neq | Lt | Gt | Leq | Geq -> 1
-    | Add | Minus -> 2
-
-  let arg_level = function Binop (b, _, _) -> binop_level b | _ -> 999
+  let is_binop = function
+    | Binop(_, _, _) -> true
+    | _ -> false
 
   let rec pp ppf = function
     | Var v -> pp_print_string ppf (VariableName.user v)
@@ -80,15 +77,15 @@ module Formatting = struct
         pp_print_string ppf s ;
         pp_print_char ppf '\"'
     | Binop (b, e1, e2) ->
-        pp_print_char ppf '(' ;
+        if is_binop e1 then pp_print_char ppf '(' ;
         pp ppf e1 ;
-        pp_print_char ppf ')' ;
+        if is_binop e1 then pp_print_char ppf ')' ;
         pp_print_char ppf ' ' ;
         pp_print_string ppf (show_binop b) ;
         pp_print_char ppf ' ' ;
-        pp_print_char ppf '(' ;
+        if is_binop e2 then pp_print_char ppf '(' ;
         pp ppf e2 ;
-        pp_print_char ppf ')'
+        if is_binop e2 then pp_print_char ppf ')' ;
     | Unop (u, e) ->
         pp_print_string ppf (show_unop u) ;
         pp_print_char ppf '(' ;
@@ -102,7 +99,7 @@ module Formatting = struct
 
   let rec pp_payload_type ppf = function
     | PTAbstract n -> pp_print_string ppf (PayloadTypeName.user n)
-    | PTRefined (v, t, e) ->
+    | PTRefined (_, t, e) ->
         pp_payload_type ppf t ;
         pp_print_string ppf "{" ;
         pp ppf e ;
