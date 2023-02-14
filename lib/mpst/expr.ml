@@ -80,18 +80,15 @@ module Formatting = struct
         pp_print_string ppf s ;
         pp_print_char ppf '\"'
     | Binop (b, e1, e2) ->
-        let level_current = binop_level b in
-        let level_left = arg_level e1 in
-        let level_right = arg_level e2 in
-        if level_left < level_current then pp_print_char ppf '(' ;
+        pp_print_char ppf '(' ;
         pp ppf e1 ;
-        if level_left < level_current then pp_print_char ppf ')' ;
+        pp_print_char ppf ')' ;
         pp_print_char ppf ' ' ;
         pp_print_string ppf (show_binop b) ;
         pp_print_char ppf ' ' ;
-        if level_right < level_current then pp_print_char ppf '(' ;
+        pp_print_char ppf '(' ;
         pp ppf e2 ;
-        if level_right < level_current then pp_print_char ppf ')'
+        pp_print_char ppf ')'
     | Unop (u, e) ->
         pp_print_string ppf (show_unop u) ;
         pp_print_char ppf '(' ;
