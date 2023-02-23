@@ -91,6 +91,7 @@ and token lexbuf =
   | '@' -> ARROBA
   (* keywords *)
   | "not" -> NOT_KW
+  | '!' -> NOT_KW
   | "true" -> TRUE_KW
   | "false" -> FALSE_KW
   | "protocol" -> PROTOCOL_KW
