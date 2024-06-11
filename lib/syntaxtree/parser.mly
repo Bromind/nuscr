@@ -27,6 +27,8 @@
 %token LTGT
 %token PLUS
 %token MINUS
+%token CARET
+%token PERCENT
 %token LTEQ
 %token GTEQ
 
@@ -323,6 +325,8 @@ expr_2:
 %inline op_2:
   | PLUS { Add }
   | MINUS { Minus }
+  | CARET { Exponent }
+  | PERCENT { Modulo }
 
 expr:
   | e = expr_0 { e }

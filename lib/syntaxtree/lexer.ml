@@ -89,6 +89,8 @@ and token lexbuf =
   | '[' -> LSQUARE
   | ']' -> RSQUARE
   | '@' -> ARROBA
+  | '^' -> CARET
+  | '%' -> PERCENT
   (* keywords *)
   | "not" -> NOT_KW
   | '!' -> NOT_KW

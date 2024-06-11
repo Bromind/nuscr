@@ -173,7 +173,7 @@ let rec typecheck_basic env expr ty =
       typecheck_unop env e unop
   | Binop (binop, e1, e2) ->
       let typecheck_binop env e1 e2 = function
-        | Add | Minus ->
+        | Add | Minus | Exponent | Modulo ->
             typecheck_basic env e1 PTInt
             && typecheck_basic env e2 PTInt
             && equal_payload_type_basic ty PTInt
@@ -215,6 +215,8 @@ let sexp_of_binop = function
   | Geq -> Sexp.Atom ">="
   | And -> Sexp.Atom "and"
   | Or -> Sexp.Atom "or"
+  | Exponent -> Sexp.Atom "exp" (* Not standard in SMT-LIB Ints theory*)
+  | Modulo -> Sexp.Atom "mod"
 
 let sexp_of_unop = function
   | Neg -> Sexp.Atom "-"
@@ -363,7 +365,7 @@ let infer_type env = function
   | Binop (b, e1, e2) as e -> (
       let var = fresh_var () in
       match b with
-      | Add | Minus ->
+      | Add | Minus | Modulo | Exponent ->
           if typecheck_basic env e1 PTInt && typecheck_basic env e2 PTInt
           then Some (PTRefined (var, PTInt, Binop (Eq, Var var, e)))
           else None

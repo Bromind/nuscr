@@ -11,7 +11,7 @@ module type EXPRS_SIG = sig
     | Binop of binop * expr * expr
     | Unop of unop * expr
 
-  and binop = Add | Minus | Eq | Neq | Lt | Gt | Leq | Geq | And | Or
+  and binop = Add | Minus | Eq | Neq | Lt | Gt | Leq | Geq | And | Or | Exponent | Modulo
 
   and unop = Neg | Not | StrLen [@@deriving eq, ord, show, sexp_of]
 end
